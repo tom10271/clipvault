@@ -1,61 +1,86 @@
-# ClipVault
+# Workflows and security
 
-Native macOS menu bar clipboard history for sensitive text. No network, cloud sync, analytics, dependencies, or infrastructure changes.
+[Quick start and controls](README.md)
 
-## Chosen design
+## Open and lock history
 
-Compare two shapes. A SQLite database offers incremental writes but adds journaling and plaintext-index risks. An AES-256-GCM encrypted JSON snapshot keeps content and metadata under one authenticated encryption boundary and supports a bounded personal history. Choose the snapshot.
+![Authentication opens history. Inactivity and lock events close access while enabled capture continues.](docs/diagrams/unlock.svg)
 
-`ClipboardEntry` contains UUID, text, creation date, optional deletion date, optional name, and saved sensitivity. Old records without the new fields decode as unnamed and visible by default. `VaultSettings` contains auto-lock seconds, history limit, retention days, clipboard-clear seconds, concealed-content exclusion, and excluded application bundle IDs. One main-actor controller owns state. Session state is locked, unlocking, or unlocked with the key and entries. The encrypted store owns atomic persistence. The Secure Enclave owns an access-controlled P-256 key. ECDH and HKDF-SHA256 derive the AES-256 key, and private operations require user presence. A hardware-wrapped key representation, peer public key, and salt live beside the encrypted history. No raw history key or software peer private key for the Secure Enclave agreement is persisted. A separate inbox P-256 private key is stored only inside the encrypted history document; its public key and capture-policy projection form the authenticated public snapshot header.
+## Trash and permanent deletion
 
-Text capture runs whenever explicitly enabled, including while history is locked and before authentication after restart. Every copy enters a public-key-encrypted inbox. An authenticated session imports the inbox into history. Locking releases the history key, inbox private key, and decrypted entries, hides sensitive UI, and clears searches and revealed content without changing capture policy. Background capture never resets the inactivity timer. Deliberately copying an item in ClipVault counts as app interaction. Only deliberate user interaction with ClipVault resets it. Sleep, session resignation, and screen lock lock the vault. Expired activity is checked before every sensitive action, as timers can be delayed.
+![Trash is reversible. Permanent deletion removes the current vault copy only after a successful save.](docs/diagrams/deletion.svg)
 
-Soft delete moves entries to Trash. Restore returns them to History. Permanent delete confirms and saves a replacement encrypted snapshot before publishing the new state. Hard deletion cannot promise physical erasure from APFS, SSDs, swap, or backups. Deleting an entry also clears the live clipboard if it still matches that entry. Copied history entries have transient/concealed markers and a conditional expiry that never clears newer unrelated clipboard content.
+## What is stored
 
-## Scope
+Files live in `~/Library/Application Support/ClipVault/`.
 
-New standalone Swift package, native views, encrypted store, authentication adapter, clipboard controller, deterministic tests, app bundle/build script, settings window, and README. No changes to HBX files. macOS 13 or newer with a Secure Enclave and a Mac login password, text only, 1 MiB maximum per entry. Native Mac password fallback rather than another application password. No launch at login or image/file capture in this version.
-
-## Verification
-
-Use temporary directories and a named test pasteboard. Test encryption, corruption rejection, durable delete/restore, failed writes, limits, lock timing, capture exclusion, and clipboard expiry. Build the actual .app, inspect signing and privacy permissions, launch locked, and exercise native views. Real Touch ID and login-password approval require the owner and must be reported separately from simulated tests.
-
-## Verified platform adjustment
-
-The root agent verified that ad-hoc signing cannot access the data-protection Keychain (OSStatus -34018), while Secure Enclave key creation, serialization, and reconstruction work, and unauthenticated private operations are blocked with LocalAuthentication code -1004. This evidence replaces the initial Keychain key-storage proposal with hardware-bound ECDH derivation. There is no weaker key-storage fallback and no cross-Mac recovery.
-
-## Encrypted background capture
-
-CLIPVAULT2 snapshots authenticate their public header as AES-GCM associated data. The header publishes only the inbox public key, capture policy, and imported sequence watermark. Loading still accepts CLIPVAULT1; the first authorized save creates an inbox key and migrates atomically without changing the Secure Enclave key envelope. Capture preferences and filesystem activity metadata are public; copied text and private keys remain encrypted.
-
-Each inbox record uses fresh ephemeral P-256 ECDH, HKDF-SHA256, and AES-256-GCM. Sequence numbers are authenticated and allocated durably before writing ciphertext. The authenticated history snapshot advances its imported watermark before ciphertext cleanup. Retrying import ignores acknowledged sequences, preserving hard deletion even if old ciphertext survives a crash. Capture and history access have separate state owners inside the main-actor controller. There is no history-decryption capability in the locked collector. Explicit pause remains an authenticated setting.
-
-![Successful unlock sequence: native authentication permits protected key agreement, history and pending copies are decrypted, and the imported watermark is committed before pending ciphertext is removed.](docs/diagrams/unlock-and-import.svg)
-
-[Edit this diagram](docs/diagrams/unlock-and-import.puml). The [lock and authentication state diagram](README.md#first-use) covers cancellation and failure outcomes.
-
-## Saved sensitivity and temporary display
-
-Ordinary values display while history is authenticated. Hide persists sensitivity inside the encrypted entry; names also remain private to the snapshot. The controller owns separate ephemeral reveal deadlines, which expire after 10 seconds and clear on history close or lock. Copy does not reveal a value or change its sensitivity. The UI shows sensitive names and masks values in both visible text and accessibility labels. Search includes names and only currently visible values.
-
-Sensitivity changes atomically update all retained entries with identical text, including Trash, so an explicit Always show choice is not undone by an older hidden duplicate. Names remain per item. A retained matching value supplies name and sensitivity when later copies are imported. This happens only after authorized decryption; the locked collector never learns private metadata. All entry mutation validates and saves before publishing.
-
-A real status-bar button action can start existing native authentication for a configured locked vault. Startup passes no button sender and cannot prompt. The existing controller prevents duplicate authentication; history reopens once after successful icon-initiated authentication. Popover closure clears transient previews without canceling that explicitly requested authentication.
-
-## Diagram sources and implementation
-
-The README shows user workflows. The sequence diagram above follows a successful unlock of an existing vault. SVG previews are committed so GitHub can display them without a renderer.
-
-| Diagram source | Implementation |
+| Data | Protection |
 | --- | --- |
-| [Capture](docs/diagrams/capture.puml) | [ClipboardController](Sources/ClipVaultCore/ClipboardController.swift) and [EncryptedCaptureInbox](Sources/ClipVaultCore/EncryptedCaptureInbox.swift) |
-| [Open and lock history](docs/diagrams/unlock.puml) | [Menu bar and popup actions](Sources/ClipVault/main.swift) and [session transitions](Sources/ClipVaultCore/ClipboardController.swift) |
-| [Sensitive items](docs/diagrams/sensitive-items.puml) | [History controls and inline names](Sources/ClipVault/HistoryView.swift) and [saved sensitivity and reveal deadlines](Sources/ClipVaultCore/ClipboardController.swift) |
-| [Deletion](docs/diagrams/deletion.puml) | [Entry mutations](Sources/ClipVaultCore/ClipboardController.swift) and [snapshot persistence and retention](Sources/ClipVaultCore/Vault.swift) |
-| [Unlock and import](docs/diagrams/unlock-and-import.puml) | [Secure Enclave authentication](Sources/ClipVaultCore/Authentication.swift), [snapshot loading](Sources/ClipVaultCore/Vault.swift), and [inbox import](Sources/ClipVaultCore/EncryptedCaptureInbox.swift) |
+| Values, names, sensitivity, timestamps, Trash and settings | Encrypted inside `history.vault`. |
+| Pending copies in `inbox/` | Encrypted with a public key. The locked collector cannot decrypt them. |
+| Inbox decryption key | Stored only inside the encrypted history. |
+| `key.enclave` | Hardware-wrapped Secure Enclave key representation, peer public key and salt. No raw history key. |
+| Capture preferences, public key and import watermark | Readable, authenticated header of `history.vault`. |
+| Inbox filenames, sizes, timestamps and sequence counter | Readable filesystem metadata. |
 
-Edit the `.puml` source, render it locally with PlantUML 1.2026.6, and commit the matching SVG. No diagram contains clipboard values or private keys.
+History uses AES-256-GCM. P-256 key agreement and HKDF-SHA256 derive encryption keys. There are no network requests or cloud sync.
+
+## Unlock and import
+
+![Authenticate, decrypt history and pending copies, then commit the import watermark before removing acknowledged ciphertext.](docs/diagrams/unlock-and-import.svg)
+
+Cancellation and load/save errors leave history locked. A failed write preserves the previous snapshot. A saved import watermark prevents old pending copies from replaying after a crash.
+
+## Limits and defaults
+
+| Setting or limit | Default | Range or behavior |
+| --- | --- | --- |
+| Auto-lock | 60 seconds | 5 seconds–24 hours. Only activity inside ClipVault extends it. |
+| Expiry of text copied from history | 30 seconds | 5–3,600 seconds. Newer clipboard content is preserved. Lock clears ClipVault’s unchanged copy. |
+| History size, including Trash | 500 items | 1–5,000 items. |
+| Retention | 30 days | 1–365 days. |
+| Private-content markers | Skipped | Disable the skip filter to capture them. |
+| Text per copy | Up to 1 MiB | Images and files are not captured. |
+| Encrypted snapshot | 60 MiB serialized content | Oldest entries expire to fit, including Trash. Strings are not truncated. |
+| Pending inbox | 64 MiB | Reaching the byte ceiling pauses capture until space is available. |
+| Clipboard polling | Every 0.5 seconds | Very rapid copies can be missed. The Mac cannot poll while asleep. |
+
+Count and age limits apply on capture, unlock and settings changes. Existing encrypted history can be pruned only after authentication. App exclusions use the frontmost application when a change is observed.
+
+Names and sensitivity survive restart and Trash/restore. Identical values share sensitivity; names remain per item. Later copies inherit retained names and sensitivity. Hidden values are searchable by name, not their text, until temporarily shown.
+
+## Recovery boundaries
+
+| Situation | What to expect |
+| --- | --- |
+| Backup | Back up the entire ClipVault folder, including pending inbox files. Recovery still requires the original Mac and its Secure Enclave. |
+| Mac reset, replacement or lost key envelope | History may be unrecoverable. There is no recovery password. |
+| Permanent deletion | Backups, SSD snapshots, swap and other clipboard managers may retain copies. |
+| Lock | Session keys and decrypted entries are released. Swift and macOS cannot guarantee every prior allocation is overwritten in RAM or swap. |
+| Older vault format | One authenticated unlock creates the inbox key and migrates atomically, preserving the existing history key. |
+
+<details>
+<summary>Implementation, tests and diagram sources</summary>
+
+| Responsibility | Source |
+| --- | --- |
+| Menu bar, authentication trigger and popup lifecycle | [main.swift](Sources/ClipVault/main.swift) |
+| Inline names, sensitive controls and countdown display | [HistoryView.swift](Sources/ClipVault/HistoryView.swift) |
+| Capture, sessions, reveals and item mutations | [ClipboardController.swift](Sources/ClipVaultCore/ClipboardController.swift) |
+| Native authentication and Secure Enclave agreement | [Authentication.swift](Sources/ClipVaultCore/Authentication.swift) |
+| Schema, retention and atomic encrypted snapshots | [Vault.swift](Sources/ClipVaultCore/Vault.swift) |
+| Encrypted pending copies and acknowledgement | [EncryptedCaptureInbox.swift](Sources/ClipVaultCore/EncryptedCaptureInbox.swift) |
+
+Run `bash scripts/test.sh` for deterministic checks with synthetic keys and a named test pasteboard. `swift scripts/check-enclave.swift` verifies unauthenticated private operations are blocked. Successful owner authentication and clipboard permission require a check in the installed app.
+
+The Secure Enclave approach works with the local ad-hoc build. It replaces the data-protection Keychain approach, which returned missing-entitlement error `-34018` on this Mac.
+
+All [PlantUML sources and SVG previews](docs/diagrams) are committed. After editing a `.puml`, render its matching SVG locally with PlantUML 1.2026.6.
 
 ```sh
 java -Djava.awt.headless=true -jar /path/to/plantuml.jar -tsvg docs/diagrams/*.puml
 ```
+
+Apple references: [Secure Enclave](https://developer.apple.com/documentation/security/protecting-keys-with-the-secure-enclave), [key agreement](https://developer.apple.com/documentation/cryptokit/secureenclave/p256/keyagreement/privatekey), [clipboard permissions](https://developer.apple.com/documentation/appkit/nspasteboard/accessbehavior-9k4t4).
+
+</details>
