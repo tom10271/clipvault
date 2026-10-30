@@ -2,6 +2,10 @@
 
 Encrypted clipboard history in your Mac’s menu bar. Keeps listening while history is locked.
 
+**[Download for Apple Silicon](https://github.com/tom10271/clipvault/releases/latest/download/ClipVault-macos-arm64.zip)**
+
+macOS 13+. Ad-hoc signed, not notarized. Unzip and move **ClipVault.app** to Applications.
+
 ## Start
 
 1. Open ClipVault → **Create encrypted vault** → authenticate.
@@ -48,6 +52,6 @@ bash scripts/build-app.sh
 open dist/ClipVault.app
 ```
 
-Move the app to Applications. The local build is ad-hoc signed and not notarized.
+Move the app to Applications.
 
 </details>
