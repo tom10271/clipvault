@@ -1,0 +1,11 @@
+.build/
+dist/
+.DS_Store
+.audit/
+.swiftpm/
+*.app/
+*.vault
+*.enclave
+inbox/
+.env
+.env.*
