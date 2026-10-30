@@ -1,0 +1,43 @@
+@startuml
+skinparam BackgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam titleFontSize 20
+skinparam shadowing false
+skinparam ArrowColor #455A64
+skinparam stateBorderColor #455A64
+top to bottom direction
+title Sensitive values stay hidden until you choose Show
+
+state "Ordinary value\nVisible by default" as VISIBLE #E8F5E8
+state "Sensitive" as SENSITIVE #FFEBEE {
+  state "Value hidden" as HIDDEN #FFEBEE
+  state "Shown temporarily\nHides in Ns" as SHOWN #FFF3E0
+  [*] --> HIDDEN
+  HIDDEN -right-> SHOWN : Show
+  SHOWN -left-> HIDDEN : 10 seconds, Hide,\nhistory closes or locks
+}
+
+[*] --> VISIBLE
+VISIBLE -right-> SENSITIVE : Hide\nSave sensitivity
+SENSITIVE -left-> VISIBLE : Sensitivity menu:\nAlways show value
+
+note top of SENSITIVE #E3F2FD
+  Name the item directly in its row.
+  Return or leaving the field saves.
+  Copy can leave the value hidden.
+end note
+note bottom of SENSITIVE #E1F5FE
+  Copy does not restart the countdown.
+  Names and sensitivity are encrypted and saved.
+  Identical values share the sensitivity choice.
+  Temporary Show never changes that choice.
+end note
+note bottom of VISIBLE
+  This diagram describes unlocked history.
+  Locking hides all history.
+end note
+
+' Source: Sources/ClipVault/HistoryView.swift # row, InlineItemName
+' Source: Sources/ClipVaultCore/ClipboardController.swift # setSensitive, revealValue, copy, revealSecondsRemaining
+@enduml

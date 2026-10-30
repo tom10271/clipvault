@@ -2,6 +2,10 @@
 
 A native macOS menu bar clipboard history for sensitive text. After initial setup, click the clipboard icon in the menu bar to authenticate directly and open History or Trash. Use Touch ID or your Mac login password. Clipboard text and history entry metadata are encrypted locally. Locking protects history access while enabled listening continues.
 
+![Clipboard capture continues into an encrypted inbox while history is locked. Authentication allows pending copies to be imported into protected history.](docs/diagrams/capture.svg)
+
+[Edit this diagram](docs/diagrams/capture.puml).
+
 ## Requirements and build
 
 macOS 13 or later, a Mac with a Secure Enclave (Apple silicon or an Intel Mac with a T2 chip), a Mac login password, and Xcode Command Line Tools with Swift 6 or later.
@@ -25,6 +29,10 @@ Drag `dist/ClipVault.app` into Applications to keep it. This local build is ad-h
 
 Recent macOS versions may request permission to read the clipboard. Allow ClipVault in the system clipboard privacy controls if you want it to listen. ClipVault does not require Accessibility permission.
 
+![After setup, clicking the menu bar icon starts authentication. Success opens history, cancellation leaves it locked, and inactivity or device locking closes access without stopping enabled capture.](docs/diagrams/unlock.svg)
+
+[Edit this diagram](docs/diagrams/unlock.puml).
+
 ## Sensitive items
 
 Type directly in an item’s **Item name** field. Press Return or leave the field to save it. Clicking outside history dismisses the popup and finishes the current name edit.
@@ -34,6 +42,10 @@ Type directly in an item’s **Item name** field. Press Return or leave the fiel
 Names and sensitivity are encrypted with each entry and survive lock, restart, and Trash/restore. Identical copied values share the saved sensitivity choice, including copies in Trash; names remain per item. A later copy of the same value inherits its saved name and sensitivity from retained matching history, including Trash. Hidden values can be found by name; their text is excluded from search until temporarily shown. Names are optional, trimmed, and limited to 120 characters on one line.
 
 For an existing vault, clicking the menu bar icon while locked starts native Touch ID or Mac-password authentication directly. The app reopens history after successful authentication. Starting the app or collecting a copy in the background never triggers authentication. The **Unlock vault** button remains available as a fallback. Initial vault creation still requires an explicit choice.
+
+![Hide saves sensitivity. Show reveals a value temporarily with a countdown, while Copy can leave it hidden. The sensitivity menu can restore visible-by-default behavior.](docs/diagrams/sensitive-items.svg)
+
+[Edit this diagram](docs/diagrams/sensitive-items.puml).
 
 ## Settings
 
@@ -61,6 +73,10 @@ The app releases its session key, inbox decryption private key, and decrypted en
 This version captures text only, up to 1 MiB per entry, with a 60 MiB serialized-history ceiling. It polls for changes every half second, so very rapid copies can be missed. Consecutive identical active items are deduplicated on authenticated import. The pending encrypted inbox is bounded by the configured item limit and retention period, with a 64 MiB storage ceiling. Reaching the byte ceiling pauses capture with an error until pending copies can be imported. History retention is applied on authenticated import; older encrypted snapshot entries cannot be pruned while locked. The Mac cannot poll while asleep; listening resumes on wake with history still locked. Images, files, launch at login, custom app passwords, and multi-device recovery are outside this version.
 
 Soft deletion keeps the item encrypted in Trash. Permanent deletion removes it from the latest encrypted snapshot. It does **not** promise physical erasure from SSDs, APFS snapshots, Time Machine, swap, other applications, or other clipboard managers. Deleting an item clears the live clipboard only if it still contains the same text. Encryption protects stored history, not text currently on the system clipboard or an unlocked session.
+
+![Trash can be restored to history. Confirmed permanent deletion removes an item from the current vault after a successful save, while other copies may remain in backups or other apps.](docs/diagrams/deletion.svg)
+
+[Edit this diagram](docs/diagrams/deletion.puml).
 
 The key is bound to this Mac. Copying the files to another Mac does not recover the history. Losing `key.enclave`, replacing the Secure Enclave, or erasing the Mac can make history unrecoverable. No recovery password is provided. Back up the entire ClipVault folder if you want same-Mac recovery, including pending inbox records; backups may retain permanently deleted entries. Missing keys and corrupted vaults fail closed and are never silently replaced.
 

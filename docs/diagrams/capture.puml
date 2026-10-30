@@ -1,0 +1,37 @@
+@startuml
+skinparam BackgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam titleFontSize 20
+skinparam shadowing false
+skinparam ArrowColor #455A64
+skinparam roundcorner 12
+top to bottom direction
+title Capture continues while history is locked
+
+rectangle "Other apps" as APPS #E3F2FD
+rectangle "ClipVault on your Mac" {
+  control "Capture" as CAPTURE #E8F5E8
+  collections "Encrypted inbox" as INBOX #E1F5FE
+  rectangle "Protected history\nValues, names, sensitivity and Trash" as HISTORY #E3F2FD
+  CAPTURE -down-> INBOX : Encrypt each eligible copy
+  INBOX -down-> HISTORY : Import after authentication
+}
+actor "You" as USER
+APPS -down-> CAPTURE : Copy text
+USER -right-> HISTORY : Touch ID or Mac password
+
+note right of CAPTURE #FFF3E0
+  Listening must be enabled.
+  Exclusions and private-content filters still apply.
+  Access or storage errors can pause capture.
+end note
+note right of INBOX #E1F5FE
+  Locked history does not pause listening.
+  The collector has a public encryption key,
+  but cannot decrypt history or pending copies.
+end note
+
+' Source: Sources/ClipVaultCore/ClipboardController.swift # tick, unlock, lock
+' Source: Sources/ClipVaultCore/EncryptedCaptureInbox.swift # enqueue
+@enduml

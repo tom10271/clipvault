@@ -30,6 +30,10 @@ CLIPVAULT2 snapshots authenticate their public header as AES-GCM associated data
 
 Each inbox record uses fresh ephemeral P-256 ECDH, HKDF-SHA256, and AES-256-GCM. Sequence numbers are authenticated and allocated durably before writing ciphertext. The authenticated history snapshot advances its imported watermark before ciphertext cleanup. Retrying import ignores acknowledged sequences, preserving hard deletion even if old ciphertext survives a crash. Capture and history access have separate state owners inside the main-actor controller. There is no history-decryption capability in the locked collector. Explicit pause remains an authenticated setting.
 
+![Successful unlock sequence: native authentication permits protected key agreement, history and pending copies are decrypted, and the imported watermark is committed before pending ciphertext is removed.](docs/diagrams/unlock-and-import.svg)
+
+[Edit this diagram](docs/diagrams/unlock-and-import.puml). The [lock and authentication state diagram](README.md#first-use) covers cancellation and failure outcomes.
+
 ## Saved sensitivity and temporary display
 
 Ordinary values display while history is authenticated. Hide persists sensitivity inside the encrypted entry; names also remain private to the snapshot. The controller owns separate ephemeral reveal deadlines, which expire after 10 seconds and clear on history close or lock. Copy does not reveal a value or change its sensitivity. The UI shows sensitive names and masks values in both visible text and accessibility labels. Search includes names and only currently visible values.
@@ -37,3 +41,21 @@ Ordinary values display while history is authenticated. Hide persists sensitivit
 Sensitivity changes atomically update all retained entries with identical text, including Trash, so an explicit Always show choice is not undone by an older hidden duplicate. Names remain per item. A retained matching value supplies name and sensitivity when later copies are imported. This happens only after authorized decryption; the locked collector never learns private metadata. All entry mutation validates and saves before publishing.
 
 A real status-bar button action can start existing native authentication for a configured locked vault. Startup passes no button sender and cannot prompt. The existing controller prevents duplicate authentication; history reopens once after successful icon-initiated authentication. Popover closure clears transient previews without canceling that explicitly requested authentication.
+
+## Diagram sources and implementation
+
+The README shows user workflows. The sequence diagram above follows a successful unlock of an existing vault. SVG previews are committed so GitHub can display them without a renderer.
+
+| Diagram source | Implementation |
+| --- | --- |
+| [Capture](docs/diagrams/capture.puml) | [ClipboardController](Sources/ClipVaultCore/ClipboardController.swift) and [EncryptedCaptureInbox](Sources/ClipVaultCore/EncryptedCaptureInbox.swift) |
+| [Open and lock history](docs/diagrams/unlock.puml) | [Menu bar and popup actions](Sources/ClipVault/main.swift) and [session transitions](Sources/ClipVaultCore/ClipboardController.swift) |
+| [Sensitive items](docs/diagrams/sensitive-items.puml) | [History controls and inline names](Sources/ClipVault/HistoryView.swift) and [saved sensitivity and reveal deadlines](Sources/ClipVaultCore/ClipboardController.swift) |
+| [Deletion](docs/diagrams/deletion.puml) | [Entry mutations](Sources/ClipVaultCore/ClipboardController.swift) and [snapshot persistence and retention](Sources/ClipVaultCore/Vault.swift) |
+| [Unlock and import](docs/diagrams/unlock-and-import.puml) | [Secure Enclave authentication](Sources/ClipVaultCore/Authentication.swift), [snapshot loading](Sources/ClipVaultCore/Vault.swift), and [inbox import](Sources/ClipVaultCore/EncryptedCaptureInbox.swift) |
+
+Edit the `.puml` source, render it locally with PlantUML 1.2026.6, and commit the matching SVG. No diagram contains clipboard values or private keys.
+
+```sh
+java -Djava.awt.headless=true -jar /path/to/plantuml.jar -tsvg docs/diagrams/*.puml
+```

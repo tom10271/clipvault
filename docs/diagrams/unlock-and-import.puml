@@ -1,0 +1,60 @@
+@startuml
+skinparam BackgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam titleFontSize 20
+skinparam shadowing false
+skinparam ArrowColor #455A64
+skinparam SequenceLifeLineBorderColor #455A6440
+hide footbox
+title Successful unlock of an existing vault
+
+actor "You" as USER
+control "ClipVault" as APP #E8F5E8
+boundary "macOS authentication" as AUTH #FFEBEE
+entity "Secure Enclave" as ENCLAVE <<hardware>> #FFEBEE
+collections "history.vault" as VAULT <<encrypted storage>> #E1F5FE
+collections "Encrypted inbox" as INBOX <<encrypted files>> #E1F5FE
+
+group#FFFFFF #E8F5E8cc 1. Authenticate
+  USER -> APP : Click the menu bar icon
+  APP -> AUTH : Request owner authentication
+  AUTH -> USER : Touch ID or Mac password
+  USER --> AUTH : Approve
+  AUTH --> APP : Authenticated context
+  APP -> ENCLAVE : Use the protected private key
+  ENCLAVE --> APP : ECDH shared secret
+  APP -> APP : Derive the history key
+end
+
+group#FFFFFF #E1F5FEcc 2. Open history and pending copies
+  APP -> VAULT : Read the encrypted snapshot
+  VAULT --> APP : Ciphertext and authenticated public header
+  APP -> APP : Decrypt history and its inbox private key
+  APP -> INBOX : Read unacknowledged ciphertext
+  INBOX --> APP : Pending encrypted copies
+  APP -> APP : Decrypt, inherit saved item metadata\nand apply retention limits
+end
+
+group#FFFFFF #E8F5E8cc 3. Save before cleanup
+  APP -> VAULT : Atomically save history and import watermark
+  VAULT --> APP : Save succeeded
+  APP -> INBOX : Remove acknowledged ciphertext
+  APP --> USER : History is ready
+end
+
+note over APP, INBOX #FFF3E0
+  This is the success path. Cancellation or a load/save error keeps history locked.
+  Pending copies are not discarded before a successful history commit.
+  If cleanup fails, the saved watermark prevents replay on the next import.
+end note
+note over ENCLAVE #FFEBEE
+  The raw private key is not exported.
+  key.enclave stores its hardware-wrapped representation.
+end note
+
+' Source: Sources/ClipVaultCore/Authentication.swift # EnclaveKeyProvider.unlock
+' Source: Sources/ClipVaultCore/ClipboardController.swift # unlock, importPending
+' Source: Sources/ClipVaultCore/Vault.swift # load, save
+' Source: Sources/ClipVaultCore/EncryptedCaptureInbox.swift # read, acknowledge
+@enduml

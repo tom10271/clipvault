@@ -1,0 +1,38 @@
+@startuml
+skinparam BackgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam titleFontSize 20
+skinparam shadowing false
+skinparam ArrowColor #455A64
+skinparam stateBorderColor #455A64
+top to bottom direction
+title Trash, restore and permanent deletion
+
+state "History" as HISTORY #E3F2FD
+state "Trash\nStill encrypted" as TRASH #FFF3E0
+state "Removed from\nthe current vault" as REMOVED #FFEBEE
+
+[*] --> HISTORY
+HISTORY -right-> TRASH : Trash
+TRASH -left-> HISTORY : Restore
+HISTORY --> REMOVED : Confirm\nDelete permanently
+TRASH -right-> REMOVED : Confirm\nDelete permanently
+
+note top of TRASH #E1F5FE
+  Names and sensitivity survive restore.
+  Retention limits can also expire entries.
+end note
+note bottom of HISTORY
+  Manual Trash or permanent deletion clears
+  the clipboard only if its text still matches.
+end note
+note bottom of REMOVED #FFEBEE
+  Only after a successful snapshot save.
+  Failed saves keep the previous history.
+  Other copies and backups may remain.
+end note
+
+' Source: Sources/ClipVaultCore/ClipboardController.swift # softDelete, restore, permanentlyDelete, commit
+' Source: Sources/ClipVaultCore/Vault.swift # prune, EncryptedVaultStore.save
+@enduml

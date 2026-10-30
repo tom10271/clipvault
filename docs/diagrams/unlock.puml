@@ -1,0 +1,43 @@
+@startuml
+skinparam BackgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam titleFontSize 20
+skinparam shadowing false
+skinparam ArrowColor #455A64
+skinparam stateBorderColor #455A64
+top to bottom direction
+title Open and lock history
+
+state "History locked" as LOCKED #FFEBEE
+state "Authenticating" as AUTH #FFF3E0
+state "History available" as OPEN #E8F5E8
+
+[*] --> LOCKED
+LOCKED -right-> AUTH : Click menu bar icon
+AUTH -right-> OPEN : History ready
+AUTH -left-> LOCKED : Cancel or error
+OPEN -left-> LOCKED : Idle timeout\nor lock event
+
+note top of LOCKED #E1F5FE
+  After initial setup.
+  Startup does not prompt.
+  Enabled listening continues in every state.
+end note
+note bottom of OPEN #E3F2FD
+  Browse, name, copy, hide and delete.
+  Change settings after authentication.
+  Background copies do not extend idle time.
+end note
+note top of AUTH
+  Errors include authentication,
+  history loading and saving.
+end note
+note bottom of LOCKED
+  Lock events include Lock now,
+  sleep and screen lock.
+end note
+
+' Source: Sources/ClipVault/main.swift # togglePopover, applicationDidFinishLaunching
+' Source: Sources/ClipVaultCore/ClipboardController.swift # unlock, interact, authorized, lock
+@enduml
